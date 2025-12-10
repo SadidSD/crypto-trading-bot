@@ -1,0 +1,20 @@
+ccxt
+pandas
+numpy
+requests
+python-dotenv
+redis
+fastapi
+uvicorn
+mplfinance
+aioredis
+schedule
+scikit-learn
+# vectorbt or backtrader (user mentioned both, I will include vectorbt for simpler vector-based backtesting unless complex event-driven is needed)
+vectorbt
+telebot
+# ta-lib removed to rely on pandas/numpy for easier install
+google-generativeai
+feedparser
+websockets
+pydantic
