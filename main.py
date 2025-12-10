@@ -123,7 +123,14 @@ async def main():
     server = uvicorn.Server(config)
     api_task = asyncio.create_task(server.serve())
     
-    api_task = asyncio.create_task(server.serve())
+    # api_task already created above
+    # api_task = asyncio.create_task(server.serve()) 
+    # Duplicate removed. 
+    # But wait, looking at lines 124 and 126 in view_file:
+    # 124: api_task = asyncio.create_task(server.serve())
+    # 125: 
+    # 126: api_task = asyncio.create_task(server.serve())
+    # We need to remove line 126 completely.
     heartbeat_task = asyncio.create_task(heartbeat())
     
     print("Tasks Created. Gathering...", flush=True)
