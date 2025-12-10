@@ -32,6 +32,7 @@ async def run_collector_scanner(collector, scanner, r):
 
         print("--- Starting Data Cycle ---")
         await collector.run() # This fetches data
+        await collector.run() # This fetches data
         await scanner.scan() # This filters and pushes to queue
         print("--- Cycle Complete. Waiting 5m ---")
         await asyncio.sleep(300) # 5 minutes
@@ -57,7 +58,15 @@ async def main():
 
     # 4. Web API Server (Railway Port Binding)
     port = int(os.getenv("PORT", 8000))
-    config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info")
+    # ENABLE PROXY HEADERS FOR RAILWAY
+    config = uvicorn.Config(
+        app, 
+        host="0.0.0.0", 
+        port=port, 
+        log_level="info", 
+        proxy_headers=True, 
+        forwarded_allow_ips="*"
+    )
     server = uvicorn.Server(config)
     api_task = asyncio.create_task(server.serve())
     
