@@ -4,6 +4,7 @@ import redis.asyncio as redis
 from dotenv import load_dotenv
 
 # Import modules
+from datetime import datetime
 from collector.collector import MarketCollector
 from scanner.scanner import MarketScanner
 from engine.decision import DecisionEngine
@@ -56,10 +57,31 @@ async def safe_executor_run(executor):
     except Exception as e:
         print(f"CRITICAL EXECUTOR CRASH: {e}")
 
+async def check_redis(r):
+    try:
+        print("Checking Redis connection...", flush=True)
+        await r.ping()
+        print("Redis Alive!", flush=True)
+        return True
+    except Exception as e:
+        print(f"Redis Connection Failed: {e}", flush=True)
+        return False
+
+async def heartbeat():
+    while True:
+        print(f"HEARTBEAT [{datetime.now().time()}] - Event Loop Alive", flush=True)
+        await asyncio.sleep(10)
+
 async def main():
-    r = redis.Redis(host=REDIS_HOST, port=6379, decode_responses=True)
+    print("Initializing Main...", flush=True)
+    r = redis.Redis(host=REDIS_HOST, port=6379, decode_responses=True, socket_timeout=5.0)
+    
+    if not await check_redis(r):
+        print("FATAL: Redis not reachable. Exiting.", flush=True)
+        # We don't exit to keep Uvicorn alive for logs, but we warn
     
     # Initialize components
+    print("Initializing Components...", flush=True)
     collector = MarketCollector()
     scanner = MarketScanner()
     engine = DecisionEngine()
@@ -101,7 +123,11 @@ async def main():
     server = uvicorn.Server(config)
     api_task = asyncio.create_task(server.serve())
     
-    await asyncio.gather(data_task, engine_task, exec_task, api_task)
+    api_task = asyncio.create_task(server.serve())
+    heartbeat_task = asyncio.create_task(heartbeat())
+    
+    print("Tasks Created. Gathering...", flush=True)
+    await asyncio.gather(data_task, engine_task, exec_task, api_task, heartbeat_task)
 
 if __name__ == "__main__":
     try:
