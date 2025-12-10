@@ -31,11 +31,30 @@ async def run_collector_scanner(collector, scanner, r):
             continue
 
         print("--- Starting Data Cycle ---")
-        await collector.run() # This fetches data
-        await collector.run() # This fetches data
-        await scanner.scan() # This filters and pushes to queue
+        try:
+             await collector.run() # This fetches data
+             await scanner.scan() # This filters and pushes to queue
+        except Exception as e:
+             print(f"CRITICAL DATA CYCLE ERROR: {e}")
+             # Push to Redis for visibility
+             try:
+                 await r.lpush("bot_logs", f'{{"timestamp": "{os.getenv("TIMESTAMP_PLACEHOLDER")}", "message": "Data Cycle Crash: {str(e)}", "type": "error"}}')
+             except: pass
+        
         print("--- Cycle Complete. Waiting 5m ---")
         await asyncio.sleep(300) # 5 minutes
+
+async def safe_engine_run(engine):
+    try:
+        await engine.run()
+    except Exception as e:
+        print(f"CRITICAL ENGINE CRASH: {e}")
+
+async def safe_executor_run(executor):
+    try:
+        await executor.run()
+    except Exception as e:
+        print(f"CRITICAL EXECUTOR CRASH: {e}")
 
 async def main():
     r = redis.Redis(host=REDIS_HOST, port=6379, decode_responses=True)
@@ -48,13 +67,25 @@ async def main():
     
     # Create Tasks
     # 1. Collector/Scanner Loop (Periodic)
-    data_task = asyncio.create_task(run_collector_scanner(collector, scanner, r))
+    # No wrapper needed for data loop as it has internal try/except block now, 
+    # but let's wrap the whole task just in case wrapper itself fails?
+    # Actually, run_collector_scanner has while True. If it crashes, it stops.
+    # We should wrap it to Restart?
+    # For now, let's just make sure it doesn't kill main()
+    
+    async def safe_data_loop():
+        try:
+            await run_collector_scanner(collector, scanner, r)
+        except Exception as e:
+             print(f"DATA LOOP DEATH: {e}")
+
+    data_task = asyncio.create_task(safe_data_loop())
     
     # 2. Decision Engine (Continuous Consumer)
-    engine_task = asyncio.create_task(engine.run())
+    engine_task = asyncio.create_task(safe_engine_run(engine))
     
     # 3. Execution Engine (Continuous Consumer)
-    exec_task = asyncio.create_task(executor.run())
+    exec_task = asyncio.create_task(safe_executor_run(executor))
 
     # 4. Web API Server (Railway Port Binding)
     port = int(os.getenv("PORT", 8000))
