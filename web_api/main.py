@@ -98,6 +98,10 @@ async def redis_subscriber():
 
 # --- REST Endpoints ---
 
+@app.get("/")
+async def root():
+    return {"message": "Exhaustion Bot API Online", "status": "ok"}
+
 @app.get("/status")
 async def get_status():
     status = await redis_client.get("bot_status") or "stopped"
