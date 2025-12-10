@@ -18,4 +18,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Start Redis and the Bot
+EXPOSE 8080
 CMD redis-server --daemonize yes && python main.py

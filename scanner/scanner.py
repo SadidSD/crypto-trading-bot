@@ -139,6 +139,9 @@ class MarketScanner:
             return
 
         for symbol in symbols:
+            # Yield control to Event Loop (Prevents unresponsiveness/502s)
+            await asyncio.sleep(0)
+            
             # Skip if symbol is BTC
             if "BTC" in symbol and len(symbol) < 9: continue # Simple skip for BTC pairs if needed
             
