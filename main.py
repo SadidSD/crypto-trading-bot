@@ -121,7 +121,6 @@ async def main():
         app, 
         host="0.0.0.0", 
         port=port, 
-        port=port, 
         log_level="debug", # Verbose logs to catch request attempts
         access_log=True, 
         proxy_headers=True, 
