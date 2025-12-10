@@ -8,6 +8,8 @@ from collector.collector import MarketCollector
 from scanner.scanner import MarketScanner
 from engine.decision import DecisionEngine
 from execution.executor import TradeExecutor
+from web_api.main import app
+import uvicorn
 
 load_dotenv()
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
@@ -52,8 +54,14 @@ async def main():
     
     # 3. Execution Engine (Continuous Consumer)
     exec_task = asyncio.create_task(executor.run())
+
+    # 4. Web API Server (Railway Port Binding)
+    port = int(os.getenv("PORT", 8000))
+    config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info")
+    server = uvicorn.Server(config)
+    api_task = asyncio.create_task(server.serve())
     
-    await asyncio.gather(data_task, engine_task, exec_task)
+    await asyncio.gather(data_task, engine_task, exec_task, api_task)
 
 if __name__ == "__main__":
     try:
