@@ -33,8 +33,8 @@ async def run_collector_scanner(collector, scanner, r):
         print("--- Starting Data Cycle ---")
         await collector.run() # This fetches data
         await scanner.scan() # This filters and pushes to queue
-        print("--- Cycle Complete. Waiting 15m ---")
-        await asyncio.sleep(900) # 15 minutes
+        print("--- Cycle Complete. Waiting 5m ---")
+        await asyncio.sleep(300) # 5 minutes
 
 async def main():
     r = redis.Redis(host=REDIS_HOST, port=6379, decode_responses=True)

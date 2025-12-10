@@ -129,18 +129,21 @@ class MarketCollector:
         await self.redis.ltrim(oi_history_key, 0, 50)
 
     async def save_to_sqlite(self, symbol, timeframe, ohlcv_data):
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        data_to_insert = [
-            (symbol, timeframe, candle[0], candle[1], candle[2], candle[3], candle[4], candle[5])
-            for candle in ohlcv_data
-        ]
-        cursor.executemany('''
-            INSERT OR REPLACE INTO klines (symbol, timeframe, timestamp, open, high, low, close, volume)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', data_to_insert)
-        conn.commit()
-        conn.close()
+        def _write():
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            data_to_insert = [
+                (symbol, timeframe, candle[0], candle[1], candle[2], candle[3], candle[4], candle[5])
+                for candle in ohlcv_data
+            ]
+            cursor.executemany('''
+                INSERT OR REPLACE INTO klines (symbol, timeframe, timestamp, open, high, low, close, volume)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', data_to_insert)
+            conn.commit()
+            conn.close()
+        
+        await asyncio.to_thread(_write)
 
     async def process_symbol(self, symbol):
         # Symbol format from exchangeInfo is clean (e.g. BTCUSDT). 
@@ -176,7 +179,7 @@ class MarketCollector:
                 await self.save_to_sqlite(clean_symbol, tf, ohlcv)
 
     async def run(self):
-        print("Starting Collector (Raw HTTP)...")
+        print("Starting Collector Cycle (Raw HTTP)...")
         symbols_info = await self.fetch_exchange_info()
         
         # Filter USDT pairs
@@ -206,19 +209,14 @@ class MarketCollector:
                 except Exception as e:
                     print(f"Error processing {s}: {e}")
 
-        # Process
-        while True:
-            start_time = datetime.now()
-            tasks = [protected_process(s) for s in final_list]
-            await asyncio.gather(*tasks)
-            
-            end_time = datetime.now()
-            duration = (end_time - start_time).total_seconds()
-            print(f"Collector cycle finished in {duration:.1f}s.")
-            
-            # Ensure we don't spam too hard if cycle is fast
-            if duration < 60:
-                await asyncio.sleep(60 - duration)
+        # Process Single Cycle
+        start_time = datetime.now()
+        tasks = [protected_process(s) for s in final_list]
+        await asyncio.gather(*tasks)
+        
+        end_time = datetime.now()
+        duration = (end_time - start_time).total_seconds()
+        print(f"Collector cycle finished in {duration:.1f}s.")
 
     async def close(self):
         if self.session:
