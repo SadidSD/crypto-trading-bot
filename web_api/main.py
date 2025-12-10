@@ -75,9 +75,9 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 # Background Task to stream Redis events to WebSockets
-@app.on_event("startup")
-async def startup_event():
-    asyncio.create_task(redis_subscriber())
+# @app.on_event("startup")
+# async def startup_event():
+#     asyncio.create_task(redis_subscriber())
 
 async def redis_subscriber():
     pubsub = redis_client.pubsub()

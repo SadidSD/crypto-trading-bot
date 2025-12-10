@@ -18,9 +18,14 @@ REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 async def run_collector_scanner(collector, scanner, r):
     while True:
         # Check Status (Dashboard Control)
-        status = await r.get("bot_status")
+        # Check Status (Dashboard Control)
+        try:
+             status = await r.get("bot_status")
+        except Exception:
+             status = "error"
+        
         if status != "active":
-             print(f"Bot Status is {status}. Waiting...")
+             print(f"Bot Status is {status}. Waiting...", flush=True)
              await asyncio.sleep(5)
              continue
 
