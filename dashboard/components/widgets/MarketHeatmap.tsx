@@ -14,7 +14,8 @@ export default function MarketHeatmap() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch('http://localhost:8000/insights/heatmap')
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        fetch(`${API_URL}/insights/heatmap`)
             .then(res => res.json())
             .then(d => {
                 setData(d);
@@ -23,7 +24,8 @@ export default function MarketHeatmap() {
             .catch(err => console.error(err));
 
         const interval = setInterval(() => {
-            fetch('http://localhost:8000/insights/heatmap')
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+            fetch(`${API_URL}/insights/heatmap`)
                 .then(res => res.json())
                 .then(setData);
         }, 10000); // Poll every 10s

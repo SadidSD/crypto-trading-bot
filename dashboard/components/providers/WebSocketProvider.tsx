@@ -2,7 +2,7 @@
 import { useEffect, useRef } from 'react';
 import { useBotStore } from '@/store/botStore';
 
-const WS_URL = 'ws://localhost:8000/ws';
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/ws';
 
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     const updateStats = useBotStore((state) => state.updateStats);
@@ -19,7 +19,8 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
             ws.current.onopen = () => {
                 console.log('WS Connected');
                 // Fetch actual status on connect
-                fetch('http://localhost:8000/status')
+                const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                fetch(`${API_URL}/status`)
                     .then(res => res.json())
                     .then(data => {
                         setBotStatus(data.status);
