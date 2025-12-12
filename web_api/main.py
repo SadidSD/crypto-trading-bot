@@ -9,11 +9,12 @@ import logging
 from typing import List, Dict
 from dotenv import load_dotenv
 
+import sys
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    filename='api_debug.log',
-    filemode='w'
+    handlers=[logging.StreamHandler(sys.stdout)]
 )
 logger = logging.getLogger(__name__)
 
