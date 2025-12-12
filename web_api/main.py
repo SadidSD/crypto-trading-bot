@@ -44,6 +44,18 @@ async def lifespan(app: FastAPI):
 # Update app definition to use lifespan
 app = FastAPI(title="Exhaustion Bot API V2", lifespan=lifespan)
 
+# Request Logging Middleware
+@app.middleware("http")
+async def log_requests(request, call_next):
+    log(f"REQ: {request.method} {request.url.path}")
+    try:
+        response = await call_next(request)
+        log(f"RES: {request.method} {request.url.path} -> {response.status_code}")
+        return response
+    except Exception as e:
+        log(f"REQ FAILED: {request.method} {request.url.path} -> {e}", error=True)
+        raise e
+
 # CORS
 app.add_middleware(
     CORSMiddleware,
@@ -52,6 +64,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
 
 # Redis
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
@@ -144,9 +158,18 @@ async def get_status():
 
 @app.post("/control/start")
 async def start_bot():
-    await redis_client.set("bot_status", "active")
-    await manager.broadcast({"type": "status_change", "status": "active"}, "bot_status")
-    return {"status": "active"}
+    log("ENDPOINT: /control/start called")
+    try:
+        log("Setting Redis status to active...")
+        await redis_client.set("bot_status", "active")
+        log("Broadcasting status change...")
+        await manager.broadcast({"type": "status_change", "status": "active"}, "bot_status")
+        log("Bot Started Successfully")
+        return {"status": "active"}
+    except Exception as e:
+        log(f"Start Bot FAILED: {e}", error=True)
+        # return 500 so frontend sees it
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/control/stop")
 async def stop_bot():
