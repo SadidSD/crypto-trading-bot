@@ -11,8 +11,6 @@ from dotenv import load_dotenv
 
 import sys
 
-import sys
-
 # Logging setup was problematic, simple print works reliably in Railway
 def log(msg, error=False):
     prefix = "ERROR" if error else "INFO"
@@ -47,7 +45,11 @@ app = FastAPI(title="Exhaustion Bot API V2", lifespan=lifespan)
 # Request Logging Middleware
 @app.middleware("http")
 async def log_requests(request, call_next):
+    # Log ALL method types including OPTIONS
     log(f"REQ: {request.method} {request.url.path}")
+    if request.method == "OPTIONS":
+        log("OPTIONS Preflight Detected")
+        
     try:
         response = await call_next(request)
         log(f"RES: {request.method} {request.url.path} -> {response.status_code}")
