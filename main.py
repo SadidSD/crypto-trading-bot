@@ -106,13 +106,13 @@ async def main():
         except Exception as e:
              print(f"DATA LOOP DEATH: {e}")
 
-    data_task = asyncio.create_task(safe_data_loop())
+    # data_task = asyncio.create_task(safe_data_loop())
     
     # 2. Decision Engine (Continuous Consumer)
-    engine_task = asyncio.create_task(safe_engine_run(engine))
+    # engine_task = asyncio.create_task(safe_engine_run(engine))
     
     # 3. Execution Engine (Continuous Consumer)
-    exec_task = asyncio.create_task(safe_executor_run(executor))
+    # exec_task = asyncio.create_task(safe_executor_run(executor))
 
     # 4. Web API Server (Railway Port Binding)
     port = int(os.getenv("PORT", 8000))
