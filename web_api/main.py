@@ -75,9 +75,24 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 # Background Task to stream Redis events to WebSockets
-# @app.on_event("startup")
-# async def startup_event():
-#     asyncio.create_task(redis_subscriber())
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Web API Startup...", extra={"flush": True})
+    # Check Redis
+    try:
+        await redis_client.ping()
+        logger.info("Web API Redis Connection: OK", extra={"flush": True})
+    except Exception as e:
+        logger.error(f"Web API Redis FAILED: {e}", extra={"flush": True})
+        
+    # Start Subscriber
+    asyncio.create_task(safe_subscriber_start())
+
+async def safe_subscriber_start():
+    try:
+        await redis_subscriber()
+    except Exception as e:
+         logger.error(f"Redis Subscriber Crash: {e}", extra={"flush": True})
 
 async def redis_subscriber():
     pubsub = redis_client.pubsub()
