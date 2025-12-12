@@ -116,6 +116,10 @@ async def main():
 
     # 4. Web API Server (Railway Port Binding)
     port = int(os.getenv("PORT", 8000))
+    print(f"DEBUG: STARTING SERVER ON PORT: {port}", flush=True)
+    print(f"DEBUG: ENV PORT VALUE: {os.getenv('PORT')}", flush=True)
+    
+    # ENABLE PROXY HEADERS FOR RAILWAY
     # ENABLE PROXY HEADERS FOR RAILWAY
     config = uvicorn.Config(
         app, 
