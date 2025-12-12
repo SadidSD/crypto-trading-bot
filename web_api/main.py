@@ -40,7 +40,9 @@ async def lifespan(app: FastAPI):
     log("Web API Lifespan Shutdown...")
 
 # Update app definition to use lifespan
-app = FastAPI(title="Exhaustion Bot API V2", lifespan=lifespan)
+# app = FastAPI(title="Exhaustion Bot API V2", lifespan=lifespan)
+# DIAGNOSTIC: DISABLING LIFESPAN
+app = FastAPI(title="Exhaustion Bot API V2")
 
 # Request Logging Middleware
 @app.middleware("http")
