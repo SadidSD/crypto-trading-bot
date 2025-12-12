@@ -20,7 +20,29 @@ def log(msg, error=False):
 
 load_dotenv()
 
-app = FastAPI(title="Exhaustion Bot API V2")
+from contextlib import asynccontextmanager
+
+print("DEBUG: Web API Module Loaded", flush=True)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    log("Web API Lifespan Startup...")
+    # Check Redis
+    try:
+        await redis_client.ping()
+        log("Web API Redis Connection: OK")
+    except Exception as e:
+        log(f"Web API Redis FAILED: {e}", error=True)
+        
+    # Start Subscriber
+    task = asyncio.create_task(safe_subscriber_start())
+    yield
+    # Cleanup if needed
+    task.cancel()
+    log("Web API Lifespan Shutdown...")
+
+# Update app definition to use lifespan
+app = FastAPI(title="Exhaustion Bot API V2", lifespan=lifespan)
 
 # CORS
 app.add_middleware(
@@ -74,21 +96,6 @@ class ConnectionManager:
                     pass
 
 manager = ConnectionManager()
-
-# Background Task to stream Redis events to WebSockets
-@app.on_event("startup")
-@app.on_event("startup")
-async def startup_event():
-    log("Web API Startup...")
-    # Check Redis
-    try:
-        await redis_client.ping()
-        log("Web API Redis Connection: OK")
-    except Exception as e:
-        log(f"Web API Redis FAILED: {e}", error=True)
-        
-    # Start Subscriber
-    asyncio.create_task(safe_subscriber_start())
 
 async def safe_subscriber_start():
     try:
