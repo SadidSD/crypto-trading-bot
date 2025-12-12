@@ -11,12 +11,12 @@ from dotenv import load_dotenv
 
 import sys
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler(sys.stdout)]
-)
-logger = logging.getLogger(__name__)
+import sys
+
+# Logging setup was problematic, simple print works reliably in Railway
+def log(msg, error=False):
+    prefix = "ERROR" if error else "INFO"
+    print(f"{prefix}: {msg}", flush=True)
 
 load_dotenv()
 
@@ -77,14 +77,15 @@ manager = ConnectionManager()
 
 # Background Task to stream Redis events to WebSockets
 @app.on_event("startup")
+@app.on_event("startup")
 async def startup_event():
-    logger.info("Web API Startup...", extra={"flush": True})
+    log("Web API Startup...")
     # Check Redis
     try:
         await redis_client.ping()
-        logger.info("Web API Redis Connection: OK", extra={"flush": True})
+        log("Web API Redis Connection: OK")
     except Exception as e:
-        logger.error(f"Web API Redis FAILED: {e}", extra={"flush": True})
+        log(f"Web API Redis FAILED: {e}", error=True)
         
     # Start Subscriber
     asyncio.create_task(safe_subscriber_start())
@@ -93,7 +94,7 @@ async def safe_subscriber_start():
     try:
         await redis_subscriber()
     except Exception as e:
-         logger.error(f"Redis Subscriber Crash: {e}", extra={"flush": True})
+         log(f"Redis Subscriber Crash: {e}", error=True)
 
 async def redis_subscriber():
     pubsub = redis_client.pubsub()
@@ -166,6 +167,14 @@ async def get_positions():
 async def get_logs(limit: int = 100):
     logs = await redis_client.lrange("bot_logs", 0, limit - 1)
     return [json.loads(l) for l in logs]
+
+@app.get("/test_redis")
+async def test_redis():
+    try:
+        await redis_client.ping()
+        return {"status": "ok", "message": "Redis is Reachable"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 @app.get("/settings")
 async def get_settings():
