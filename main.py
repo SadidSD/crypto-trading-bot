@@ -140,7 +140,9 @@ async def main():
     heartbeat_task = asyncio.create_task(heartbeat())
     
     print("Tasks Created. Gathering...", flush=True)
-    await asyncio.gather(data_task, engine_task, exec_task, api_task, heartbeat_task)
+    # DIAGNOSTIC MODE: Only running API and Heartbeat to test connectivity
+    await asyncio.gather(api_task, heartbeat_task)
+    # await asyncio.gather(data_task, engine_task, exec_task, api_task, heartbeat_task)
 
 if __name__ == "__main__":
     try:
