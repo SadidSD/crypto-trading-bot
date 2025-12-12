@@ -19,4 +19,4 @@ COPY . .
 
 # Start Redis and the Bot
 EXPOSE 8080
-CMD redis-server --daemonize yes && python main.py
+CMD python main.py
