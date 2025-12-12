@@ -20,12 +20,5 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     print(f"Starting Flattened Server on PORT {port}...", flush=True)
     
-    uvicorn.run(
-        app, 
-        host="0.0.0.0", 
-        port=port, 
-        log_level="debug", 
-        access_log=True,
-        proxy_headers=True,
-        forwarded_allow_ips="*"
-    )
+    # SIMPLIFIED STARTUP (Matching the working "Hello World" config)
+    uvicorn.run(app, host="0.0.0.0", port=port)
