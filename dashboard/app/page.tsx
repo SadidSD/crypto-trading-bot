@@ -19,8 +19,9 @@ export default function DashboardPage() {
       await fetch(`${API_URL}${endpoint}`, { method: 'POST' });
       // Optimistic update, WS will confirm
       updateStats({ status: status === 'active' ? 'paused' : 'active' });
-    } catch (e) {
-      alert("Failed to toggle bot");
+    } catch (e: any) {
+      console.error("Toggle Bot Error:", e);
+      alert(`Failed to toggle bot. API: ${API_URL}\nError: ${e.message}`);
     }
     setLoading(false);
   };
