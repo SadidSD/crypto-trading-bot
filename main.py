@@ -1,24 +1,24 @@
 import os
 import uvicorn
+import traceback
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
-# FLATTENED STRUCTURE: Defining App INLINE
-# This bypasses any package import issues with 'web_api'
+# FINAL DIAGNOSTIC: Minimal + Error Catching
 
-app = FastAPI(title="Exhaustion Bot API (Flattened)")
+app = FastAPI(title="Exhaustion Bot API (Diagnostic)")
 
 @app.get("/")
 async def root():
-    return {"status": "ok", "message": "Flattened API is Alive"}
-
-@app.get("/health")
-async def health():
-    return {"status": "healthy"}
+    print("DEBUG: Root Endpoint Hit", flush=True)
+    return {"status": "ok", "message": "Diagnostic API is Alive"}
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8080))
-    print(f"Starting Flattened Server on PORT {port}...", flush=True)
-    
-    # SIMPLIFIED STARTUP (Matching the working "Hello World" config)
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    try:
+        raw_port = os.getenv("PORT", "8080")
+        port = int(raw_port)
+        print(f"DEBUG: STARTING ON PORT {port} (Raw Env: {raw_port})", flush=True)
+        
+        uvicorn.run(app, host="0.0.0.0", port=port)
+    except Exception as e:
+        print("CRITICAL: MAIN CRASHED", flush=True)
+        traceback.print_exc()
