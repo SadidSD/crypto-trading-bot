@@ -31,8 +31,8 @@ class TradeExecutor:
 
     async def get_session(self):
         if self.session is None:
-            # trust_env=False FORCES direct connection (Ignores any accidental Proxy vars)
-            self.session = aiohttp.ClientSession(trust_env=False)
+            # Re-enable Proxy Support (trust_env=True)
+            self.session = aiohttp.ClientSession(trust_env=True)
         return self.session
 
     def get_signature(self, params):
