@@ -196,6 +196,34 @@ async def get_heatmap():
         logger.error(f"Heatmap Error: {e}")
         return []
 
+@app.get("/debug/system")
+async def debug_system():
+    stats = {
+        "redis_connected": bool(redis_client),
+        "components": {
+            "collector": bool(collector),
+            "scanner": bool(scanner),
+            "engine": bool(engine),
+            "executor": bool(executor)
+        },
+        "env": {
+            "binance_key_set": bool(os.getenv("BINANCE_API_KEY")),
+            "redis_host": REDIS_HOST
+        },
+        "data_counts": {}
+    }
+    
+    if redis_client:
+        try:
+            stats["data_counts"]["metrics"] = len(await redis_client.keys("metrics:*"))
+            stats["data_counts"]["klines"] = len(await redis_client.keys("klines:*"))
+            stats["data_counts"]["orders"] = await redis_client.llen("execution:orders")
+            stats["bot_status"] = await redis_client.get("bot_status")
+        except Exception as e:
+            stats["redis_error"] = str(e)
+            
+    return stats
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     # Log connection attempt
