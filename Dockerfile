@@ -8,9 +8,10 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Install Python dependencies
+# Install Python dependencies (scikit-learn, vectorbt, etc)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# DISABLE PROXY FOR BUILD (Use Railway's internet for pip, free proxies break builds)
+RUN HTTP_PROXY="" HTTPS_PROXY="" pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
 COPY . .
