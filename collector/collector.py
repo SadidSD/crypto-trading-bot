@@ -132,11 +132,13 @@ class MarketCollector:
         key = f"klines:{symbol}:{timeframe}"
         await self.redis.set(key, json.dumps(data))
     
-    async def save_metrics_to_redis(self, symbol, funding, oi):
+    async def save_metrics_to_redis(self, symbol, funding, oi, price=0.0, change_4h=0.0):
         key = f"metrics:{symbol}"
         data = {
             'funding_rate': funding,
             'open_interest': oi,
+            'price': price,
+            'change_4h': change_4h,
             'updated_at': datetime.now().isoformat()
         }
         await self.redis.set(key, json.dumps(data))
@@ -187,14 +189,29 @@ class MarketCollector:
         funding = await self.fetch_funding_rate(clean_symbol)
         oi = await self.fetch_open_interest(clean_symbol)
         
-        if funding is not None and oi is not None:
-             await self.save_metrics_to_redis(clean_symbol, funding, oi)
+        current_price = 0.0
+        change_4h = 0.0
 
+        # Fetch Candles & Calculate Metrics
         for tf in timeframes:
             ohlcv = await self.fetch_ohlcv(clean_symbol, tf)
             if ohlcv:
                 await self.save_to_redis(clean_symbol, tf, ohlcv)
                 await self.save_to_sqlite(clean_symbol, tf, ohlcv)
+                
+                # Use 4h data for Price & Change calculation
+                if tf == '4h' and len(ohlcv) > 0:
+                    latest = ohlcv[-1]
+                    # Format: [t, o, h, l, c, v]
+                    open_p = float(latest[1])
+                    close_p = float(latest[4])
+                    current_price = close_p
+                    if open_p > 0:
+                        change_4h = ((close_p - open_p) / open_p) * 100
+
+        # Save Metrics (Funding, OI, Price, Change)
+        if funding is not None and oi is not None:
+             await self.save_metrics_to_redis(clean_symbol, funding, oi, current_price, change_4h)
 
     async def run(self):
         print("Starting Collector Cycle (Raw HTTP)...")
@@ -212,8 +229,18 @@ class MarketCollector:
              target_symbols.remove('BTCUSDT')
              
         # Track ALL coins (User Request)
-        final_list = ['BTCUSDT'] + target_symbols
-        print(f"Tracking {len(final_list)} symbols.")
+        # final_list = ['BTCUSDT'] + target_symbols
+        # print(f"Tracking {len(final_list)} symbols.")
+        
+        # --- SAFE MODE (Top 20 Only) ---
+        # To avoid Shared IP Bans (Error -1003), we limit to high volume pairs.
+        final_list = [
+            'BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 
+            'ADAUSDT', 'DOGEUSDT', 'AVAXUSDT', 'TRXUSDT', 'DOTUSDT',
+            'MATICUSDT', 'LTCUSDT', 'LINKUSDT', 'UNIUSDT', 'ATOMUSDT',
+            'ETCUSDT', 'FILUSDT', 'NEARUSDT', 'BCHUSDT', 'APTUSDT'
+        ]
+        print(f"Tracking {len(final_list)} symbols (SAFE MODE).")
         
         # Concurrency Control to prevent 429 API Ban
         # process_symbol makes ~6 requests. 300 symbols * 6 = 1800 req.
