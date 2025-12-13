@@ -188,8 +188,8 @@ async def get_heatmap():
                 m = json.loads(raw)
                 data.append({
                     "symbol": symbol,
-                    "value": float(m.get("funding_rate", 0)) * 1000,
-                    "price": 0
+                    "value": round(float(m.get("change_4h", 0)), 2), # Show 4H Change %
+                    "price": float(m.get("price", 0)) # Show Real Price
                 })
         return data
     except Exception as e:
