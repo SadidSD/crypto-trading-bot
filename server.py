@@ -4,11 +4,11 @@ from fastapi import FastAPI
 
 # FINAL ATTEMPT: Respecting the Platform Contract
 
-app = FastAPI()
+# IMPORT THE REAL APP
+from web_api.main import app
 
-@app.get("/")
-def read_root():
-    return {"status": "ok", "message": "Resurrected Deployment"}
+# NOTE: The app object is now imported from web_api.main
+# We do not define a dummy app here.
 
 if __name__ == "__main__":
     # Railway provides the PORT variable. We MUST use it.
