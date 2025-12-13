@@ -229,6 +229,28 @@ async def debug_system():
             
     return stats
 
+@app.post("/debug/trade")
+async def debug_trade():
+    """Injects a FAKE signal to test execution (Demo Trade)"""
+    if not redis_client: return {"error": "No Redis"}
+    
+    # Test Signal: Long BTC (Testnet Safe)
+    signal = {
+        "symbol": "BTCUSDT",
+        "side": "BUY",
+        "amount": 0.005, # Min size for BTC is usually 0.001, safe margin
+        "params": {
+            "stop_loss": 80000, 
+            "take_profit_1": 120000,
+            "take_profit_2": 140000
+        },
+        "scores": {"debug": 100}
+    }
+    
+    await redis_client.lpush("execution:orders", json.dumps(signal))
+    logger.info(" injected DEBUG signal")
+    return {"status": "injected", "signal": signal}
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     # Log connection attempt
