@@ -51,13 +51,28 @@ def notification_listener():
             print(f"Listener error: {e}")
             time.sleep(5)
 
-if __name__ == "__main__":
+def start_telegram_bot():
     if not TELEGRAM_BOT_TOKEN:
-        print("Telegram Token not set.")
-    else:
-        # Start listener thread
-        t = threading.Thread(target=notification_listener, daemon=True)
-        t.start()
-        
-        print("Telegram Bot Polling...")
-        bot.infinity_polling()
+        print("Telegram Token not set. Skpping Bot startup.")
+        return
+
+    # Start listener thread (Redis -> Telegram)
+    t_listener = threading.Thread(target=notification_listener, daemon=True)
+    t_listener.start()
+    
+    # Start Polling thread (Telegram -> Bot Commands)
+    def _poll():
+        try:
+             print("Telegram Bot Polling...")
+             bot.infinity_polling()
+        except Exception as e:
+             print(f"Telegram Polling Error: {e}")
+
+    t_poll = threading.Thread(target=_poll, daemon=True)
+    t_poll.start()
+
+if __name__ == "__main__":
+    start_telegram_bot()
+    # Keep main thread alive if running standalone
+    while True:
+        time.sleep(1)

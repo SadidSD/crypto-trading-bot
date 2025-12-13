@@ -15,6 +15,7 @@ try:
     from scanner.scanner import MarketScanner
     from engine.decision import DecisionEngine
     from execution.executor import TradeExecutor
+    from monitoring.telegram_bot import start_telegram_bot # Import Bot
     IMPORTS_OK = True
 except ImportError as e:
     print(f"CRITICAL IMPORT ERROR: {e}")
