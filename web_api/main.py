@@ -4,8 +4,9 @@ import json
 import logging
 import redis.asyncio as redis
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.routing import APIRoute
 
 # Import Core Engines
 # These imports work because we run from the project root (server.py)
@@ -84,6 +85,15 @@ async def lifespan(app: FastAPI):
     
     logger.info(">>> STARTING BOT SYSTEMS <<<")
     
+    # Debug: Print Registered Routes
+    logger.info("--- REGISTERED ROUTES ---")
+    for route in app.routes:
+        if isinstance(route, APIRoute):
+            logger.info(f"ROUTE: {route.methods} {route.path}")
+        else:
+            logger.info(f"ROUTE: {route.path} ({type(route)})")
+    logger.info("-------------------------")
+
     # 1. Connect Redis
     try:
         redis_client = redis.from_url(REDIS_URL, decode_responses=True)
@@ -107,6 +117,8 @@ async def lifespan(app: FastAPI):
         asyncio.create_task(scanner_loop(scanner)) # Scanner Loop
         
         logger.info("All Bot Engines Launched.")
+    else:
+        logger.warning("ENGINES NOT STARTED DUE TO IMPORT ERRORS")
     
     yield # API Runs Here
     
@@ -120,7 +132,7 @@ app = FastAPI(title="Exhaustion Bot API", description="Trading Bot Backend", lif
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"], # Allow ALL origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -148,6 +160,7 @@ async def get_status():
 
 @app.post("/control/start")
 async def start_bot():
+    logger.info("ENDPOINT CALL: /control/start")
     if not redis_client: return {"error": "No Redis"}
     await redis_client.set("bot_status", "active")
     await manager.broadcast({"type": "status_change", "status": "active"})
@@ -155,6 +168,7 @@ async def start_bot():
 
 @app.post("/control/stop")
 async def stop_bot():
+    logger.info("ENDPOINT CALL: /control/stop")
     if not redis_client: return {"error": "No Redis"}
     await redis_client.set("bot_status", "offline")
     await manager.broadcast({"type": "status_change", "status": "offline"})
@@ -164,23 +178,29 @@ async def stop_bot():
 @app.get("/insights/heatmap")
 async def get_heatmap():
     if not redis_client: return []
-    # Simplified mock for now, or fetch real metrics if available
-    keys = await redis_client.keys("metrics:*")
-    data = []
-    for k in keys:
-        symbol = k.split(":")[1]
-        raw = await redis_client.get(k)
-        if raw:
-            m = json.loads(raw)
-            data.append({
-                "symbol": symbol,
-                "value": float(m.get("funding_rate", 0)) * 1000, # Mock visualization value
-                "price": 0
-            })
-    return data
+    try:
+        keys = await redis_client.keys("metrics:*")
+        data = []
+        for k in keys:
+            symbol = k.split(":")[1]
+            raw = await redis_client.get(k)
+            if raw:
+                m = json.loads(raw)
+                data.append({
+                    "symbol": symbol,
+                    "value": float(m.get("funding_rate", 0)) * 1000,
+                    "price": 0
+                })
+        return data
+    except Exception as e:
+        logger.error(f"Heatmap Error: {e}")
+        return []
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    # Log connection attempt
+    logger.info(f"WS Attempt from {websocket.client}")
+    # Explicitly accept
     await manager.connect(websocket)
     try:
         while True:
@@ -188,3 +208,5 @@ async def websocket_endpoint(websocket: WebSocket):
             # Keep connection open
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+    except Exception as e:
+        logger.error(f"WS Error: {e}")
