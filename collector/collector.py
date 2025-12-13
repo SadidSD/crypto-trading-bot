@@ -27,8 +27,12 @@ class MarketCollector:
 
     async def get_session(self):
         if self.session is None:
-            # trust_env=False FORCES direct connection (Ignores any accidental Proxy vars)
-            self.session = aiohttp.ClientSession(trust_env=False)
+            # trust_env=False FORCES direct connection
+            # Add Browser User-Agent to avoid "Bot" bans
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            }
+            self.session = aiohttp.ClientSession(trust_env=False, headers=headers)
         return self.session
 
     def init_db(self):
@@ -224,8 +228,8 @@ class MarketCollector:
             async with sem:
                 try:
                     await self.process_symbol(s)
-                    # Gentle delay to preventing hammering
-                    await asyncio.sleep(0.5)
+                    # Extended delay for Shared IP safety
+                    await asyncio.sleep(2.0)
                 except Exception as e:
                     print(f"Error processing {s}: {e}")
 
