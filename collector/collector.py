@@ -66,11 +66,22 @@ class MarketCollector:
         try:
             async with session.get(f"{BASE_URL}/fapi/v1/klines", params=params) as resp:
                 data = await resp.json()
+                
+                # ERROR HANDLING: Check if response is an error dict
+                if isinstance(data, dict):
+                    print(f"Binance Error for {symbol}: {data}")
+                    return []
+                
+                # Check if data is actually a list
+                if not isinstance(data, list):
+                     print(f"Binance Unexpected Format for {symbol}: {type(data)} -> {data}")
+                     return []
+
                 # Parse [t, o, h, l, c, v, ...]
-                # CCXT structure: [t, o, h, l, c, v]
-                # Binance raw: [t, o, h, l, c, v, ...] (strings)
                 parsed = []
                 for k in data:
+                    # Defensive parsing
+                    if len(k) < 6: continue 
                     parsed.append([
                         int(k[0]),
                         float(k[1]),
@@ -81,7 +92,9 @@ class MarketCollector:
                     ])
                 return parsed
         except Exception as e:
-            print(f"Error fetching OHLCV for {symbol} {timeframe}: {e}")
+            # print(f"Error fetching OHLCV for {symbol} {timeframe}: {e}")
+            # Suppress generic noise, focused errors logged above
+            pass
             return []
 
     async def fetch_funding_rate(self, symbol):
