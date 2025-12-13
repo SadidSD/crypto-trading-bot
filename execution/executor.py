@@ -10,14 +10,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Executor uses MAINNET keys for Real Trading
+# Executor uses Standard Keys (User must put Testnet keys in BINANCE_API_KEY env var)
 BINANCE_API_KEY = os.getenv("BINANCE_API_KEY")
 BINANCE_SECRET_KEY = os.getenv("BINANCE_SECRET_KEY")
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 
-# Switching to MAINNET for Execution
-BASE_URL = "https://fapi.binance.com"
+# Switching to TESTNET for Execution (User Verification)
+BASE_URL = "https://testnet.binancefuture.com"
 
 # --- SAFETY LOCK ---
 # User requested "Enable trading".
