@@ -214,12 +214,18 @@ class MarketCollector:
         # Concurrency Control to prevent 429 API Ban
         # process_symbol makes ~6 requests. 300 symbols * 6 = 1800 req.
         # Limit to ~5 concurrent symbols => 30 active requests.
-        sem = asyncio.Semaphore(5)
+        # Concurrency Control (Safe Mode for Render/Free Tier)
+        # Limit 1200 weight/min. Each symbol ~10 weight.
+        # Max safe speed: 120 symbols/min = 2 symbols/sec.
+        # We set Semaphore to 2 and add sleep to be safe.
+        sem = asyncio.Semaphore(2)
 
         async def protected_process(s):
             async with sem:
                 try:
                     await self.process_symbol(s)
+                    # Gentle delay to preventing hammering
+                    await asyncio.sleep(0.5)
                 except Exception as e:
                     print(f"Error processing {s}: {e}")
 
