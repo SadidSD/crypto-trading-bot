@@ -234,15 +234,15 @@ async def debug_trade():
     """Injects a FAKE signal to test execution (Demo Trade)"""
     if not redis_client: return {"error": "No Redis"}
     
-    # Test Signal: Long BTC (Testnet Safe)
+    # Test Signal: Long TRX (Safer/Cheaper than BTC)
     signal = {
-        "symbol": "BTCUSDT",
+        "symbol": "TRXUSDT",
         "side": "BUY",
-        "amount": 0.005, # Min size for BTC is usually 0.001, safe margin
+        "amount": 20, # ~$6 USD value (Safe test size)
         "params": {
-            "stop_loss": 80000, 
-            "take_profit_1": 120000,
-            "take_profit_2": 140000
+            "stop_loss": 0.20, 
+            "take_profit_1": 0.35,
+            "take_profit_2": 0.40
         },
         "scores": {"debug": 100}
     }
