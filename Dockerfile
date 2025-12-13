@@ -10,8 +10,10 @@ WORKDIR /app
 
 # Install Python dependencies (scikit-learn, vectorbt, etc)
 COPY requirements.txt .
-# DISABLE PROXY FOR BUILD (Use Railway's internet for pip, free proxies break builds)
-RUN HTTP_PROXY="" HTTPS_PROXY="" pip install --no-cache-dir -r requirements.txt
+# DISABLE PROXY FOR BUILD (The Aggressive Way)
+# We unset the variables and pass empty strings to ensure pip doesn't see them
+RUN unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy && \
+    HTTP_PROXY="" HTTPS_PROXY="" pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
 COPY . .
