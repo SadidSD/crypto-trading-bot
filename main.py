@@ -2,12 +2,21 @@ import os
 import uvicorn
 from fastapi import FastAPI
 
-# NUCLEAR OPTION REDUX: The Exact Code That Worked Before
+# FINAL ATTEMPT: Respecting the Platform Contract
 
 app = FastAPI()
 
 @app.get("/")
 def read_root():
-    return {"status": "ok", "message": "Minimal Deployment (No Redis)"}
+    return {"status": "ok", "message": "Resurrected Deployment"}
 
-# CLI Entry Point - No __main__ needed
+if __name__ == "__main__":
+    # Railway provides the PORT variable. We MUST use it.
+    # Default to 8080 only if testing locally.
+    port_str = os.getenv("PORT", "8080")
+    port = int(port_str)
+    
+    print(f"DEBUG: Railway Assigned PORT: {port}", flush=True)
+    
+    # Run simple, clean execution
+    uvicorn.run(app, host="0.0.0.0", port=port)
