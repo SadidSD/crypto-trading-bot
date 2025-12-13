@@ -183,13 +183,18 @@ async def get_heatmap():
         data = []
         for k in keys:
             symbol = k.split(":")[1]
-            raw = await redis_client.get(k)
-            if raw:
-                m = json.loads(raw)
+            # OLD: raw = await redis_client.get(k); m = json.loads(raw)
+            # NEW: Redis Hash
+            m = await redis_client.hgetall(k)
+            
+            if m:
+                # Prefer change_24h (Stream) -> change_4h (Poll) -> 0
+                change_val = float(m.get("change_24h", m.get("change_4h", 0)))
+                
                 data.append({
                     "symbol": symbol,
-                    "value": round(float(m.get("change_4h", 0)), 2), # Show 4H Change %
-                    "price": float(m.get("price", 0)) # Show Real Price
+                    "value": round(change_val, 2),
+                    "price": float(m.get("price", 0))
                 })
         return data
     except Exception as e:

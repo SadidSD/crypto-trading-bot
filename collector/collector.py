@@ -1,6 +1,7 @@
 import os
 import asyncio
 import json
+import websockets
 import aiohttp
 import pandas as pd
 import redis.asyncio as redis
@@ -132,21 +133,75 @@ class MarketCollector:
         key = f"klines:{symbol}:{timeframe}"
         await self.redis.set(key, json.dumps(data))
     
+import websockets
+
+# ... (imports remain)
+
+    # REFACTOR: Use Redis Hash for partial updates (Polling vs Streaming data)
     async def save_metrics_to_redis(self, symbol, funding, oi, price=0.0, change_4h=0.0):
         key = f"metrics:{symbol}"
-        data = {
-            'funding_rate': funding,
-            'open_interest': oi,
-            'price': price,
-            'change_4h': change_4h,
+        # We use HSET so we don't overwrite Price/Change from WebSocket if we are just updating Funding/OI
+        mapping = {
+            'funding_rate': str(funding),
+            'open_interest': str(oi),
             'updated_at': datetime.now().isoformat()
         }
-        await self.redis.set(key, json.dumps(data))
+        if price > 0: mapping['price'] = str(price)
+        if change_4h != 0: mapping['change_4h'] = str(change_4h)
+        
+        await self.redis.hset(key, mapping=mapping)
         
         oi_history_key = f"oi_history:{symbol}"
         timestamp = datetime.now().timestamp()
         await self.redis.lpush(oi_history_key, json.dumps({'ts': timestamp, 'oi': oi}))
         await self.redis.ltrim(oi_history_key, 0, 50)
+
+    # NEW: WebSocket Stream for ALL 530+ Coins (Zero API Weight)
+    async def listen_ticker_stream(self):
+        url = "wss://fstream.binance.com/ws/!ticker@arr"
+        print(f"Connecting to Ticker Stream: {url}")
+        while True:
+            try:
+                async with websockets.connect(url) as ws:
+                    while True:
+                        msg = await ws.recv()
+                        data = json.loads(msg)
+                        # Data is list of objects
+                        # e.g. [{"s": "BTCUSDT", "c": "95000.00", "P": "5.00" ...}, ...]
+                        
+                        pipeline = self.redis.pipeline()
+                        for t in data:
+                            sym = t['s']
+                            # Only track USDT perps
+                            if not sym.endswith('USDT'): continue
+                            
+                            price = float(t['c'])
+                            change_24h = float(t['P'])
+                            
+                            key = f"metrics:{sym}"
+                            # HSET partial update
+                            pipeline.hset(key, mapping={
+                                'price': str(price),
+                                'change_24h': str(change_24h), # Note: using 24h change for broad market
+                                'last_stream_update': datetime.now().isoformat()
+                            })
+                        
+                        await pipeline.execute()
+                        # No sleep needed, this is event driven
+            except Exception as e:
+                print(f"Ticker Stream Error: {e}")
+                await asyncio.sleep(5) # Reconnect delay
+
+    # ... (skipping to run)
+
+    async def run(self):
+        print("Starting Collector Cycle (Hybrid: WS + Polling)...")
+        
+        # 1. Start WebSocket Listener (Background)
+        asyncio.create_task(self.listen_ticker_stream())
+        
+        # 2. Continue with Polling (SAFE MODE - Top 20 Only)
+        # ... (rest of run method)
 
     async def save_to_sqlite(self, symbol, timeframe, ohlcv_data):
         def _write():
@@ -214,7 +269,10 @@ class MarketCollector:
              await self.save_metrics_to_redis(clean_symbol, funding, oi, current_price, change_4h)
 
     async def run(self):
-        print("Starting Collector Cycle (Raw HTTP)...")
+        print("Starting Collector Cycle (Hybrid: WS + Polling)...")
+        # 1. Start WebSocket Listener (Background)
+        asyncio.create_task(self.listen_ticker_stream())
+
         symbols_info = await self.fetch_exchange_info()
         
         # Filter USDT pairs
