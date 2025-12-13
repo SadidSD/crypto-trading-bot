@@ -133,10 +133,6 @@ class MarketCollector:
         key = f"klines:{symbol}:{timeframe}"
         await self.redis.set(key, json.dumps(data))
     
-import websockets
-
-# ... (imports remain)
-
     # REFACTOR: Use Redis Hash for partial updates (Polling vs Streaming data)
     async def save_metrics_to_redis(self, symbol, funding, oi, price=0.0, change_4h=0.0):
         key = f"metrics:{symbol}"
