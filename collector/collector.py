@@ -27,11 +27,8 @@ class MarketCollector:
 
     async def get_session(self):
         if self.session is None:
-    async def get_session(self):
-        if self.session is None:
             # trust_env=False FORCES direct connection (Ignores any accidental Proxy vars)
             self.session = aiohttp.ClientSession(trust_env=False)
-        return self.session
         return self.session
 
     def init_db(self):
