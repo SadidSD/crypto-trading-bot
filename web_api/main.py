@@ -103,6 +103,10 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Redis Connection Failed: {e}")
 
+    # 1.5 Start Telegram Bot
+    if IMPORTS_OK:
+        start_telegram_bot()
+
     # 2. Start Engines (only if imports worked)
     if IMPORTS_OK:
         collector = MarketCollector()
