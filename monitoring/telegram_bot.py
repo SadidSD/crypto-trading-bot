@@ -64,8 +64,11 @@ def start_telegram_bot():
     def _poll():
         try:
              print("Telegram Bot Polling...")
-             bot.infinity_polling()
+             bot.infinity_polling(restart_on_change=False)
         except Exception as e:
+             if "409" in str(e) or "Conflict" in str(e):
+                 print("Telegram Conflict (409): Another bot instance is running. Disabling polling on this instance.")
+                 return # Exit thread cleanly
              print(f"Telegram Polling Error: {e}")
 
     t_poll = threading.Thread(target=_poll, daemon=True)

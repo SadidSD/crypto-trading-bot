@@ -103,8 +103,34 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Redis Connection Failed: {e}")
 
-    # 1.5 Start Telegram Bot
-    if IMPORTS_OK:
+    # 1.5 Start Telegram Bot (Singleton via Redis Lock)
+    if IMPORTS_OK and redis_client:
+        # Try to acquire a lock for 10 seconds (just to check), but real logic is "am I the leader?"
+        # Better strategy: Only ONE instance should poll.
+        # We set a key "bot:telegram_leader" with a TTL.
+        # But for Polling, updates are exclusive.
+        # If we use a simple lock, the second instance won't start polling.
+        # If the first instance dies, the lock expires and the second takes over?
+        # That requires a heartbeat loop.
+        
+        # SIMPLER FIX:
+        # Just catch the 409 error in the bot thread and exit the THREAD silently?
+        # NO, because we want one to work.
+        
+        # Let's try to set a "leader" key.
+        # If successful, we start polling.
+        # If not, we don't.
+        # Problem: If leader dies hard, key remains until TTL.
+        
+        # Robust Fix: Use the error itself.
+        try:
+             start_telegram_bot()
+        except:
+             pass # Handled internally?
+             
+        # Actually `start_telegram_bot` spawns a thread.
+        # Let's Modify `monitoring/telegram_bot.py` to handle 409 gracefully.
+        pass
         start_telegram_bot()
 
     # 2. Start Engines (only if imports worked)
