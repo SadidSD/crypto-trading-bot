@@ -153,7 +153,7 @@ async def root():
         "components": ["Collector", "Scanner", "Engine", "Executor"] if IMPORTS_OK else ["IMPORTS_FAILED"]
     }
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 async def health():
     return {"status": "healthy"}
 
