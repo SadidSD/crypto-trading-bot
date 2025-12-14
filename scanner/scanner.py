@@ -24,10 +24,10 @@ class MarketScanner:
 
     async def get_metrics(self, symbol):
         key = f"metrics:{symbol}"
-        data = await self.redis.get(key)
+        data = await self.redis.hgetall(key)
         if not data:
             return None
-        return json.loads(data)
+        return data # Already a dict, no need to json.loads
 
     async def get_oi_history(self, symbol):
         key = f"oi_history:{symbol}"
