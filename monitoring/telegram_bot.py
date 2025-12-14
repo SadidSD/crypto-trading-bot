@@ -64,6 +64,8 @@ def start_telegram_bot():
     def _poll():
         try:
              print("Telegram Bot Polling...")
+             # Disable internal threading to allow us to catch the exception in THIS thread
+             bot.threaded = False 
              bot.infinity_polling(restart_on_change=False)
         except Exception as e:
              if "409" in str(e) or "Conflict" in str(e):
