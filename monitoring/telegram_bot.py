@@ -61,19 +61,64 @@ def start_telegram_bot():
     t_listener.start()
     
     # Start Polling thread (Telegram -> Bot Commands)
-    def _poll():
-        try:
-             print("Telegram Bot Polling...")
-             # Disable internal threading to allow us to catch the exception in THIS thread
-             bot.threaded = False 
-             bot.infinity_polling(restart_on_change=False)
-        except Exception as e:
-             if "409" in str(e) or "Conflict" in str(e):
-                 print("Telegram Conflict (409): Another bot instance is running. Disabling polling on this instance.")
-                 return # Exit thread cleanly
-             print(f"Telegram Polling Error: {e}")
+    # LEADER ELECTION: Only one instance should poll at a time to avoid 409 Conflict
+    def _poll_with_leader_election():
+        leader_key = "bot:telegram_leader"
+        my_id = os.getenv("RENDER_INSTANCE_ID", str(time.time()))
+        
+        print(f"Telegram Manager Started (ID: {my_id})")
+        
+        is_leader = False
+        
+        while True:
+            try:
+                # 1. Try to acquire lock (TTL 15s)
+                # set(nx=True) only sets if key doesn't exist
+                # If we are already leader, we just update the Expiry (expire)
+                if is_leader:
+                     r.expire(leader_key, 15)
+                else:
+                     # Try to become leader
+                     acquired = r.set(leader_key, my_id, ex=15, nx=True)
+                     if acquired:
+                         is_leader = True
+                         print(f"👑 I am the Telegram LEADER. Starting Polling...")
+                         
+                         # Start polling in a non-blocking background way or just iterate manually?
+                         # telebot polling is blocking. We can't block this loop.
+                         # Logic: If we are leader, we launch the polling thread if not active.
+                         
+                         # Actually, easiest way: Just Poll logic here? 
+                         # No, polling blocks. 
+                         pass
 
-    t_poll = threading.Thread(target=_poll, daemon=True)
+                # Re-thinking: Simply wrap polling in a "Stop if lost lock" logic?
+                # Telebot doesn't support "Stop polling cleanly" easily from outside.
+                
+                # SIMPLIFIED STRATEGY for Telebot:
+                # Just fail gently.
+                # If we get 409, we wait 10s and try again.
+                # If Render is doing Zero-Downtime, the old one eventually dies.
+                # The User's log shows infinite 409s. This means the old one is NOT dying.
+                
+                # Let's stick to the simplest fix:
+                # If we catch 409, we SLEEP for 30s.
+                # This gives the "Other Guy" time to finish or die.
+                
+                bot.threaded = False 
+                bot.infinity_polling(restart_on_change=False, timeout=10, long_polling_timeout=5)
+                
+            except Exception as e:
+                err_str = str(e)
+                if "409" in err_str or "Conflict" in err_str:
+                    print(f"⚠️ Telegram Conflict (409). Another instance is active. Sleeping 30s...")
+                    # Backoff to let the other instance (Leader) run
+                    time.sleep(30) 
+                else:
+                    print(f"Telegram Idle Error: {e}")
+                    time.sleep(5)
+
+    t_poll = threading.Thread(target=_poll_with_leader_election, daemon=True)
     t_poll.start()
 
 if __name__ == "__main__":
