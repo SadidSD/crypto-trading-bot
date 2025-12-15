@@ -286,37 +286,70 @@ class MarketCollector:
         # final_list = ['BTCUSDT'] + target_symbols
         # print(f"Tracking {len(final_list)} symbols.")
         
-        # --- SAFE MODE (Top 20 Only) ---
-        # To avoid Shared IP Bans (Error -1003), we limit to high volume pairs.
-        final_list = [
-            'BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 
-            'ADAUSDT', 'DOGEUSDT', 'AVAXUSDT', 'TRXUSDT', 'DOTUSDT',
-            'MATICUSDT', 'LTCUSDT', 'LINKUSDT', 'UNIUSDT', 'ATOMUSDT',
-            'ETCUSDT', 'FILUSDT', 'NEARUSDT', 'BCHUSDT', 'APTUSDT'
-        ]
-        print(f"Tracking {len(final_list)} symbols (SAFE MODE).")
+        # 2. Hybrid Polling (Smart Mode)
+        # We track ALL coins, but only fetch OHLCV (Heavy REST call) if:
+        # A) The coin has moved significantly (>3% in 24h/4h) on the WebSocket stream.
+        # B) We haven't fetched it in > 60 minutes (Backfill).
         
-        # Concurrency Control to prevent 429 API Ban
-        # process_symbol makes ~6 requests. 300 symbols * 6 = 1800 req.
-        # Limit to ~5 concurrent symbols => 30 active requests.
-        # Concurrency Control (Safe Mode for Render/Free Tier)
-        # Limit 1200 weight/min. Each symbol ~10 weight.
-        # Max safe speed: 120 symbols/min = 2 symbols/sec.
-        # We set Semaphore to 2 and add sleep to be safe.
-        sem = asyncio.Semaphore(2)
+        print(f"Tracking {len(target_symbols)} symbols (SMART MODE).")
+        
+        # Concurrency: 5 concurrent workers
+        sem = asyncio.Semaphore(5)
 
         async def protected_process(s):
-            async with sem:
+             async with sem:
                 try:
-                    await self.process_symbol(s)
-                    # Extended delay for Shared IP safety
-                    await asyncio.sleep(2.0)
+                    # SMART CHECK: Do we need to scan this?
+                    # Check Redis metrics populated by WebSocket
+                    # If price change is small, we skip REST calls to save weight.
+                    
+                    key = f"metrics:{s}"
+                    m = await self.redis.hgetall(key)
+                    
+                    should_scan = False
+                    reason = "periodic"
+                    
+                    if not m:
+                        # New coin, verify
+                        should_scan = True
+                        reason = "init"
+                    else:
+                        # Check last update time
+                        updated_at = m.get("updated_at_rest", "2000-01-01T00:00:00")
+                        last_ts = datetime.fromisoformat(updated_at).timestamp() if updated_at else 0
+                        now_ts = datetime.now().timestamp()
+                        
+                        # Rule 1: Always scan every 60 mins
+                        if (now_ts - last_ts) > 3600: 
+                             should_scan = True
+                             reason = "stale"
+                        
+                        # Rule 2: Volatility Trigger (If moved > 3% in 24h)
+                        # We use 24h change from WS
+                        else:
+                            change_24h = abs(float(m.get("change_24h", 0)))
+                            # If pumping/dumping, we want fresh candles
+                            if change_24h > 3.0: 
+                                should_scan = True
+                                reason = f"volatility_{change_24h:.1f}%"
+                    
+                    if should_scan:
+                        # print(f"Scanning {s} ({reason})...")
+                        await self.process_symbol(s)
+                        
+                        # Mark as REST updated
+                        await self.redis.hset(key, "updated_at_rest", datetime.now().isoformat())
+                        
+                        # Rate Limit Delay (Weight Safety)
+                        await asyncio.sleep(0.5) 
+                    
                 except Exception as e:
-                    print(f"Error processing {s}: {e}")
+                    # print(f"Error processing {s}: {e}")
+                    pass
 
         # Process Single Cycle
         start_time = datetime.now()
-        tasks = [protected_process(s) for s in final_list]
+        tasks = [protected_process(s) for s in target_symbols]
         await asyncio.gather(*tasks)
         
         end_time = datetime.now()
