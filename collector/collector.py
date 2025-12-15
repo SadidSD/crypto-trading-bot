@@ -347,14 +347,25 @@ class MarketCollector:
                     # print(f"Error processing {s}: {e}")
                     pass
 
-        # Process Single Cycle
-        start_time = datetime.now()
-        tasks = [protected_process(s) for s in target_symbols]
-        await asyncio.gather(*tasks)
-        
-        end_time = datetime.now()
-        duration = (end_time - start_time).total_seconds()
-        print(f"Collector cycle finished in {duration:.1f}s.")
+        # LOOP: Keep checking forever
+        while True:
+            try:
+                # Process Single Cycle
+                start_time = datetime.now()
+                tasks = [protected_process(s) for s in target_symbols]
+                await asyncio.gather(*tasks)
+                
+                end_time = datetime.now()
+                duration = (end_time - start_time).total_seconds()
+                # print(f"Collector cycle finished in {duration:.1f}s.")
+                
+                # Check frequency: Every 30 seconds
+                # This ensures we catch pumps relatively quickly without hammering Redis/CPU
+                await asyncio.sleep(30)
+
+            except Exception as e:
+                print(f"Collector Loop Error: {e}")
+                await asyncio.sleep(60)
 
     async def close(self):
         if self.session:
