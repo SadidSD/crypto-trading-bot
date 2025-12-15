@@ -193,7 +193,7 @@ class MarketCollector:
     # ... (skipping to run)
 
     async def run(self):
-        print("Starting Collector Cycle (Hybrid: WS + Polling)... [CANARY CHECK]")
+        print("Starting Collector Cycle (Hybrid: WS + Polling)...")
         
         # 1. Start WebSocket Listener (Background)
         asyncio.create_task(self.listen_ticker_stream())
