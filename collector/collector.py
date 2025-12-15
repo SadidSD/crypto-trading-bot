@@ -293,12 +293,17 @@ class MarketCollector:
         
         print(f"Tracking {len(target_symbols)} symbols (SMART MODE).")
         
-        # Concurrency: 5 concurrent workers
-        sem = asyncio.Semaphore(5)
+        # Concurrency: Reduced to 2 to prevent API Ban (-1003)
+        # Limit is 2400/min. 
+        # With Sem=2 and Sleep=1s => Max ~2 * 6req / 1s = 12 req/s = 720 req/min (Safe)
+        sem = asyncio.Semaphore(2)
 
         async def protected_process(s):
              async with sem:
                 try:
+                    # STRICT RATE LIMIT DELAY (Start of slot)
+                    await asyncio.sleep(1.0)
+                    
                     # SMART CHECK: Do we need to scan this?
                     # Check Redis metrics populated by WebSocket
                     # If price change is small, we skip REST calls to save weight.
@@ -340,8 +345,8 @@ class MarketCollector:
                         # Mark as REST updated
                         await self.redis.hset(key, "updated_at_rest", datetime.now().isoformat())
                         
-                        # Rate Limit Delay (Weight Safety)
-                        await asyncio.sleep(0.5) 
+                        # Additional post-request cooling
+                        await asyncio.sleep(0.2) 
                     
                 except Exception as e:
                     # print(f"Error processing {s}: {e}")
