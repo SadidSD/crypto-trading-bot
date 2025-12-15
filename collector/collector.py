@@ -75,6 +75,8 @@ class MarketCollector:
                 
                 # ERROR HANDLING: Check if response is an error dict
                 if isinstance(data, dict):
+                    if data.get('code') == -1003:
+                         raise Exception(f"Binance Error -1003: {data['msg']}")
                     print(f"Binance Error for {symbol}: {data}")
                     return []
                 
@@ -302,7 +304,8 @@ class MarketCollector:
              async with sem:
                 try:
                     # STRICT RATE LIMIT DELAY (Start of slot)
-                    await asyncio.sleep(1.0)
+                    # Increased to 2.0s (Max ~120 requests/min with sem=2) - Very Safe
+                    await asyncio.sleep(2.0)
                     
                     # SMART CHECK: Do we need to scan this?
                     # Check Redis metrics populated by WebSocket
@@ -349,8 +352,13 @@ class MarketCollector:
                         await asyncio.sleep(0.2) 
                     
                 except Exception as e:
-                    # print(f"Error processing {s}: {e}")
-                    pass
+                    # GLOBAL RATE LIMIT PROTECTION
+                    if "-1003" in str(e) or "Too many requests" in str(e):
+                        print(f"⚠️ API RATE LIMIT HIT! Global Backoff 60s... ({e})")
+                        await asyncio.sleep(60)
+                    else:
+                        # print(f"Error processing {s}: {e}")
+                        pass
 
         # LOOP: Keep checking forever
         while True:
