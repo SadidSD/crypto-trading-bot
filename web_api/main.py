@@ -79,6 +79,23 @@ async def scanner_loop(scanner_instance):
             logger.error(f"Scanner Loop Error: {e}")
             await asyncio.sleep(60)
 
+async def redis_event_listener():
+    """Listens to Redis PubSub channels and broadcasts to WebSockets"""
+    logger.info("Starting Redis Event Listener (Bridge)...")
+    pubsub = redis_client.pubsub()
+    await pubsub.subscribe("pipeline_events", "bot_logs")
+    
+    async for message in pubsub.listen():
+        if message['type'] == 'message':
+            channel = message['channel']
+            data = message['data']
+            # Broadcast to WS
+            # We wrap it in a structure: {type: 'pipeline_event', payload: ...}
+            if channel == "pipeline_events":
+                await manager.broadcast({"type": "pipeline_event", "payload": json.loads(data)})
+            elif channel == "bot_logs":
+                await manager.broadcast({"type": "log", "payload": json.loads(data)})
+
 # --- Lifespan Manager (The Brain) ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -141,11 +158,11 @@ async def lifespan(app: FastAPI):
         executor = TradeExecutor()
         
         # Launch Background Loops
-        # These run concurrently in the event loop
         asyncio.create_task(collector.run())     # Data Collection Loop
         asyncio.create_task(engine.run())        # Decision Engine Loop
         asyncio.create_task(executor.run())      # Trade Execution Loop
         asyncio.create_task(scanner_loop(scanner)) # Scanner Loop
+        asyncio.create_task(redis_event_listener()) # NEW: Bridge Redis -> WebSocket
         
         logger.info("All Bot Engines Launched.")
     else:

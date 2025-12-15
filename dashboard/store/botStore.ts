@@ -8,6 +8,14 @@ interface Trade {
     status: string;
 }
 
+interface PipelineEvent {
+    timestamp: number | string;
+    stage: 'scanner' | 'engine' | 'execution';
+    symbol: string;
+    status: 'pass' | 'fail' | 'processing' | 'executed';
+    details: string;
+}
+
 interface BotState {
     status: 'active' | 'paused' | 'error' | 'offline';
     candidates: number;
@@ -15,9 +23,11 @@ interface BotState {
     pnl: number;
     trades: Trade[];
     logs: string[];
+    pipelineEvents: PipelineEvent[]; // NEW: Pipeline History
     setBotStatus: (status: BotState['status']) => void;
     updateStats: (stats: Partial<BotState>) => void;
     addLog: (log: string) => void;
+    addPipelineEvent: (event: PipelineEvent) => void;
 }
 
 export const useBotStore = create<BotState>((set) => ({
@@ -27,7 +37,12 @@ export const useBotStore = create<BotState>((set) => ({
     pnl: 0,
     trades: [],
     logs: [],
+    pipelineEvents: [],
     setBotStatus: (status) => set({ status }),
     updateStats: (stats) => set((state) => ({ ...state, ...stats })),
     addLog: (log) => set((state) => ({ logs: [log, ...state.logs].slice(0, 100) })),
+    addPipelineEvent: (event) => set((state) => ({
+        // Keep last 50 events, newest first
+        pipelineEvents: [event, ...state.pipelineEvents].slice(0, 50)
+    })),
 }));

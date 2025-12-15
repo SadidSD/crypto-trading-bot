@@ -8,6 +8,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     const updateStats = useBotStore((state) => state.updateStats);
     const setBotStatus = useBotStore((state) => state.setBotStatus);
     const addLog = useBotStore((state) => state.addLog);
+    const addPipelineEvent = useBotStore((state) => state.addPipelineEvent);
     const ws = useRef<WebSocket | null>(null);
 
     useEffect(() => {
@@ -44,6 +45,9 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
                     }
                     if (data.type === 'info') {
                         addLog(data.message);
+                    }
+                    if (data.type === 'pipeline_event') {
+                        addPipelineEvent(data.payload);
                     }
                     // Handle other types
                 } catch (e) {

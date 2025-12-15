@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PipelineViewer } from '@/components/widgets/PipelineViewer';
 import { Button } from '@/components/ui/button';
 import { useBotStore } from '@/store/botStore';
 import { Activity, DollarSign, TrendingUp, Zap } from 'lucide-react';
@@ -85,6 +86,9 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* PIPELINE VISUALIZATION (New) */}
+      <PipelineViewer />
 
       {/* CHARTS / WIDGETS */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">

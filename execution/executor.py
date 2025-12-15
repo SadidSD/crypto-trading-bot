@@ -179,6 +179,16 @@ class TradeExecutor:
             await self.redis.ltrim("trade_history", 0, 999)
             
             await self.notify(f"Executed Short {symbol}\nSL: {sl_price}\nTP1: {tp1}\nTP2: {tp2}")
+            
+            # PIPELINE EVENT: Execution
+            event = {
+                "timestamp": time.time(),
+                "stage": "execution",
+                "symbol": symbol,
+                "status": "executed",
+                "details": f"Price: {signal.get('entry_price')} | Size: {amount}"
+            }
+            await self.redis.publish("pipeline_events", json.dumps(event))
 
         except Exception as e:
             print(f"Execution Error {symbol}: {e}")

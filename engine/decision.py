@@ -127,17 +127,31 @@ class DecisionEngine:
         
         return signal
 
+    async def publish_event(self, symbol, status, details=""):
+        event = {
+             "timestamp": 0, # Placeholder, can use time.time()
+             "stage": "engine",
+             "symbol": symbol,
+             "status": status,
+             "details": details
+        }
+        await self.redis.publish("pipeline_events", json.dumps(event))
+
     async def run(self):
         print("Decision Engine Running...")
         while True:
             # Pop from candidate queue
             symbol = await self.redis.rpop("scanner:candidates")
             if symbol:
+                await self.publish_event(symbol, "processing", "AI Analyzing...")
                 signal = await self.process_candidate(symbol)
                 if signal:
                     print(f"TRADE SIGNAL: {signal}")
+                    await self.publish_event(symbol, "pass", f"Final Score: {signal['scores']['final']:.2f}")
                     # Push to execution queue
                     await self.redis.lpush("execution:orders", json.dumps(signal))
+                else:
+                    await self.publish_event(symbol, "fail", "Low Score / Validation Failed")
             else:
                 await asyncio.sleep(5) # Wait if empty
 

@@ -212,10 +212,21 @@ class MarketScanner:
                 f.write(f"{timestamp},{symbol},{price_now},{pump_4h:.2f},{pump_1h:.2f},{df_1h.iloc[-1]['volume']},{metrics['funding_rate']},{oi_increase:.2f}\n")
             # -----------------------------------------
 
-        # Push to Queue
-        if candidates:
-            await self.redis.lpush("scanner:candidates", *candidates)
-            print(f"Pushed {len(candidates)} candidates to queue.")
+            # Push to Queue
+            if candidates:
+                await self.redis.lpush("scanner:candidates", *candidates)
+                print(f"Pushed {len(candidates)} candidates to queue.")
+                
+                # PIPELINE EVENT: Scanner Pass
+                for cand in candidates:
+                     event = {
+                         "timestamp": datetime.now().isoformat(),
+                         "stage": "scanner",
+                         "symbol": cand,
+                         "status": "pass",
+                         "details": "User Strategy (Pump > 10%)"
+                     }
+                     await self.redis.publish("pipeline_events", json.dumps(event))
 
 if __name__ == "__main__":
     scanner = MarketScanner()
