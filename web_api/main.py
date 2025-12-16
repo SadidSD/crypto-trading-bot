@@ -307,17 +307,52 @@ async def debug_pipeline():
     """Injects a FAKE pipeline event to test the Dashboard"""
     if not redis_client: return {"error": "No Redis"}
     
-    event = {
+    # Simulate Full Pipeline Lifecycle
+    
+    # 1. Scanner Found
+    event_scan = {
         "timestamp": time.time(),
         "stage": "scanner",
-        "symbol": "DEBUG/USDT",
+        "symbol": "TEST/USDT",
         "status": "pass",
-        "details": "Manual Test Event (Pump 99%)"
+        "details": "Simulated Pump (12%)"
     }
+    await redis_client.publish("pipeline_events", json.dumps(event_scan))
+    await asyncio.sleep(1)
     
-    # Broadcast to Redis Channel
-    await redis_client.publish("pipeline_events", json.dumps(event))
-    return {"status": "sent", "event": event}
+    # 2. AI Processing
+    event_ai_proc = {
+        "timestamp": time.time(),
+        "stage": "engine",
+        "symbol": "TEST/USDT",
+        "status": "processing",
+        "details": "AI Analyzing Patterns..."
+    }
+    await redis_client.publish("pipeline_events", json.dumps(event_ai_proc))
+    await asyncio.sleep(2)
+    
+    # 3. AI Pass
+    event_ai_pass = {
+        "timestamp": time.time(),
+        "stage": "engine",
+        "symbol": "TEST/USDT",
+        "status": "pass",
+        "details": "Score: 89/100 (Bull Flag)"
+    }
+    await redis_client.publish("pipeline_events", json.dumps(event_ai_pass))
+    await asyncio.sleep(1)
+
+    # 4. Execution
+    event_exec = {
+        "timestamp": time.time(),
+        "stage": "execution",
+        "symbol": "TEST/USDT",
+        "status": "executed",
+        "details": "Entry: 1.234 | Size: 50"
+    }
+    await redis_client.publish("pipeline_events", json.dumps(event_exec))
+
+    return {"status": "sequence_sent", "symbol": "TEST/USDT"}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
