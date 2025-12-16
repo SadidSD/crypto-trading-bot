@@ -194,8 +194,58 @@ class TradeExecutor:
             print(f"Execution Error {symbol}: {e}")
             await self.notify(f"Execution Failed for {symbol}: {e}")
 
+    async def fetch_balance(self):
+        """Fetches total wallet balance (USDT) from Binance"""
+        try:
+            # GET /fapi/v2/account
+            data = await self.send_request('GET', '/fapi/v2/account')
+            
+            # Find USDT balance
+            total_balance = 0.0
+            pnl = 0.0 # Unrealized PnL
+            
+            for asset in data.get('assets', []):
+                if asset['asset'] == 'USDT':
+                    total_balance = float(asset['walletBalance'])
+                    pnl = float(asset['unrealizedProfit'])
+                    break
+            
+            return total_balance, pnl
+        except Exception as e:
+            print(f"Balance Fetch Error: {e}")
+            return 0.0, 0.0
+
+    async def monitor_balance(self):
+        """Background loop to update stats every 60s"""
+        print("Starting Balance Monitor...")
+        while True:
+            try:
+                balance, pnl = await self.fetch_balance()
+                
+                # Update Redis Key (for API polling)
+                stats = {
+                    "balance": balance,
+                    "pnl": pnl,
+                    "timestamp": time.time()
+                }
+                
+                # Publish to 'bot_stats' Channel (for WebSocket)
+                await self.redis.publish("bot_stats", json.dumps(stats))
+                
+                # Also set a simple key for REST API /status endpoint if needed
+                # (Though currently /status checks 'bot_status' string)
+                
+            except Exception as e:
+                print(f"Monitor Balance Error: {e}")
+            
+            await asyncio.sleep(60)
+
     async def run(self):
         print("Executor Engine Running (Raw HTTP)...")
+        
+        # Start Balance Monitor
+        asyncio.create_task(self.monitor_balance())
+        
         while True:
             item = await self.redis.rpop("execution:orders")
             if item:

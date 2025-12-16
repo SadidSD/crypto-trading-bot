@@ -49,7 +49,13 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
                     if (data.type === 'pipeline_event') {
                         addPipelineEvent(data.payload);
                     }
-                    // Handle other types
+                    if (data.type === 'stats_update') {
+                        // payload: { balance: 123, pnl: 45, ... }
+                        updateStats({
+                            balance: data.payload.balance,
+                            pnl: data.payload.pnl
+                        });
+                    }
                 } catch (e) {
                     console.error("WS Parse Error", e);
                 }
