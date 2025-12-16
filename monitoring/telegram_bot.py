@@ -105,8 +105,13 @@ def start_telegram_bot():
                 # If we catch 409, we SLEEP for 30s.
                 # This gives the "Other Guy" time to finish or die.
                 
+                # REFINED STRATEGY:
+                # Use polling(non_stop=False) so 409 exceptions BUBBLE UP.
+                # infinity_polling swallows them and retries instantly (spamming logs).
+                
                 bot.threaded = False 
-                bot.infinity_polling(restart_on_change=False, timeout=10, long_polling_timeout=5)
+                # This will raise an exception on 409, allowing us to catch it below.
+                bot.polling(non_stop=False, interval=0, timeout=10, long_polling_timeout=5)
                 
             except Exception as e:
                 err_str = str(e)
