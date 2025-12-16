@@ -301,6 +301,23 @@ async def debug_trade():
     logger.info(" injected DEBUG signal")
     return {"status": "injected", "signal": signal}
 
+@app.post("/debug/pipeline")
+async def debug_pipeline():
+    """Injects a FAKE pipeline event to test the Dashboard"""
+    if not redis_client: return {"error": "No Redis"}
+    
+    event = {
+        "timestamp": time.time(),
+        "stage": "scanner",
+        "symbol": "DEBUG/USDT",
+        "status": "pass",
+        "details": "Manual Test Event (Pump 99%)"
+    }
+    
+    # Broadcast to Redis Channel
+    await redis_client.publish("pipeline_events", json.dumps(event))
+    return {"status": "sent", "event": event}
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     # Log connection attempt
